@@ -5,6 +5,7 @@ import { fabric } from 'fabric'
 const canvas = shallowRef<fabric.Canvas | null>(null)
 export const selectedObject = shallowRef<fabric.Object | null>(null)
 export const zoom = ref(1)
+export const objectCount = ref(0)
 
 export const useCanvas = () => {
   const initCanvas = (el: HTMLCanvasElement, width = 900, height = 650) => {
@@ -33,6 +34,9 @@ export const useCanvas = () => {
         selectedObject.value = selectedObject.value  // trigger reactivity
       }
     })
+    // 追踪对象数量（驱动 hint 显示）
+    c.on('object:added', () => { objectCount.value = c.getObjects().length })
+    c.on('object:removed', () => { objectCount.value = c.getObjects().length })
 
     canvas.value = c
     zoom.value = 1
@@ -42,6 +46,7 @@ export const useCanvas = () => {
   const disposeCanvas = () => {
     canvas.value?.dispose()
     canvas.value = null
+    objectCount.value = 0
   }
 
   const setZoom = (newZoom: number, point?: fabric.Point) => {

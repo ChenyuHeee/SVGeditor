@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { fabric } from 'fabric'
-import { useCanvas } from '../composables/useCanvas'
+import { useCanvas, objectCount } from '../composables/useCanvas'
 import { useHistory } from '../composables/useHistory'
 import { useDrawTools } from '../composables/useDrawTools'
 import { useSVGLoader } from '../composables/useSVGLoader'
@@ -29,7 +29,7 @@ const { initHistory } = useHistory()
 const { bindCanvasEvents } = useDrawTools()
 const { loadSVGFromFile } = useSVGLoader()
 
-const showHint = computed(() => !canvas.value || canvas.value.getObjects().length === 0)
+const showHint = computed(() => objectCount.value === 0)
 
 const onWheel = (e: WheelEvent) => {
   if (!canvas.value) return

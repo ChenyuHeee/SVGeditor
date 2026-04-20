@@ -22,6 +22,7 @@ export const useSVGLoader = () => {
         canvas.value!.clear()
         if (!objects.length) return
 
+        // 先组合以获取整体尺寸和坐标系
         const group = fabric.util.groupSVGElements(objects, options)
         const cw = canvas.value!.getWidth()
         const ch = canvas.value!.getHeight()
@@ -34,6 +35,11 @@ export const useSVGLoader = () => {
         group.center()
         group.setCoords()
         canvas.value!.add(group)
+        canvas.value!.setActiveObject(group)
+
+        // 解组 —— 让每个元素可单独编辑
+        const ungrouped = (group as any).toActiveSelection() as fabric.ActiveSelection
+        canvas.value!.discardActiveObject()
         canvas.value!.renderAll()
         saveState()
       },
