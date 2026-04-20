@@ -1,6 +1,7 @@
 import { fabric } from 'fabric'
 import { useCanvas } from './useCanvas'
 import { useHistory } from './useHistory'
+import { useTabs } from './useTabs'
 
 const preprocessSVG = (svg: string): string => {
   return svg
@@ -11,6 +12,7 @@ const preprocessSVG = (svg: string): string => {
 export const useSVGLoader = () => {
   const { canvas } = useCanvas()
   const { saveState } = useHistory()
+  const { activeTab } = useTabs()
 
   const loadSVGFromString = (svgString: string) => {
     if (!canvas.value) return
@@ -38,9 +40,15 @@ export const useSVGLoader = () => {
         canvas.value!.setActiveObject(group)
 
         // 解组 —— 让每个元素可单独编辑
-        const ungrouped = (group as any).toActiveSelection() as fabric.ActiveSelection
+        ;(group as any).toActiveSelection() as fabric.ActiveSelection
         canvas.value!.discardActiveObject()
         canvas.value!.renderAll()
+
+        // 同步 tab 尺寸元数据
+        if (activeTab.value) {
+          activeTab.value.width  = canvas.value!.getWidth()
+          activeTab.value.height = canvas.value!.getHeight()
+        }
         saveState()
       },
       // reviver: convert text → IText for double-click editing

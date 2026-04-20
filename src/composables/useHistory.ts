@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { useCanvas } from './useCanvas'
+import { useTabs } from './useTabs'
 
 // 模块级历史栈 —— 避免多次调用时数据丢失
 const historyStack: string[] = []
@@ -15,6 +16,7 @@ const updateFlags = () => {
 
 export const useHistory = () => {
   const { canvas } = useCanvas()
+  const { saveCurrentState } = useTabs()
 
   const saveState = () => {
     if (!canvas.value || _paused) return
@@ -23,6 +25,8 @@ export const useHistory = () => {
     historyStack.push(json)
     historyIndex++
     updateFlags()
+    // 同步持久化到 localStorage
+    saveCurrentState(canvas.value)
   }
 
   const loadState = (json: string) => {
@@ -31,6 +35,7 @@ export const useHistory = () => {
     canvas.value.loadFromJSON(json, () => {
       canvas.value!.renderAll()
       _paused = false
+      saveCurrentState(canvas.value!)
     })
   }
 

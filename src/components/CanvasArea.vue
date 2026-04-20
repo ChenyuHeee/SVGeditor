@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { fabric } from 'fabric'
 import { useCanvas, objectCount } from '../composables/useCanvas'
 import { useHistory } from '../composables/useHistory'
@@ -22,6 +22,7 @@ import { useDrawTools } from '../composables/useDrawTools'
 import { useSVGLoader } from '../composables/useSVGLoader'
 import { useExport } from '../composables/useExport'
 import { useClipboard } from '../composables/useClipboard'
+import { useTabs } from '../composables/useTabs'
 
 // 供 Ctrl+N 使用，触发 Toolbar 的对话框
 const emit = defineEmits<{ (e: 'new-canvas'): void }>()
@@ -35,6 +36,19 @@ const { bindCanvasEvents, setTool } = useDrawTools()
 const { loadSVGFromFile } = useSVGLoader()
 const { exportSVG } = useExport()
 const { copy, paste, duplicate, group, ungroup } = useClipboard()
+const { activeTabId, activeTab, newTab } = useTabs()
+
+/** 把 tab 的 JSON 数据加载到 canvas */
+const applyTab = (tab: { canvasJSON: string; width: number; height: number }) => {
+  if (!canvas.value) return
+  canvas.value.setWidth(tab.width)
+  canvas.value.setHeight(tab.height)
+  canvas.value.loadFromJSON(tab.canvasJSON, () => {
+    canvas.value!.setViewportTransform([1, 0, 0, 1, 0, 0])
+    canvas.value!.renderAll()
+    initHistory()
+  })
+}
 
 const showHint = computed(() => objectCount.value === 0)
 
@@ -62,6 +76,10 @@ const onKeyDown = (e: KeyboardEvent) => {
       case 'n':
         e.preventDefault()
         emit('new-canvas')
+        return
+      case 't':
+        e.preventDefault()
+        newTab(900, 650, '#ffffff')
         return
       case 'z':
         e.preventDefault()
@@ -168,9 +186,20 @@ onMounted(() => {
   if (!canvasEl.value || !wrapperRef.value) return
   const { width, height } = wrapperRef.value.getBoundingClientRect()
   initCanvas(canvasEl.value, Math.floor(width) || 900, Math.floor(height - 2) || 650)
-  initHistory()
   bindCanvasEvents()
   window.addEventListener('keydown', onKeyDown)
+
+  // 恢复当前 tab 的持久化内容
+  if (activeTab.value) {
+    applyTab(activeTab.value)
+  } else {
+    initHistory()
+  }
+})
+
+// 切换 tab 时加载对应内容
+watch(activeTabId, () => {
+  if (activeTab.value) applyTab(activeTab.value)
 })
 
 onUnmounted(() => {

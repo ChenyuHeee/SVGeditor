@@ -94,6 +94,7 @@
           <div class="shortcuts-col">
             <div class="shortcuts-section">文件 / 历史</div>
             <div class="shortcut-row"><kbd>Ctrl N</kbd><span>新建画布</span></div>
+            <div class="shortcut-row"><kbd>Ctrl T</kbd><span>新建标签</span></div>
             <div class="shortcut-row"><kbd>Ctrl S</kbd><span>导出 SVG</span></div>
             <div class="shortcut-row"><kbd>Ctrl Z</kbd><span>撤销</span></div>
             <div class="shortcut-row"><kbd>Ctrl Shift Z</kbd><span>重做</span></div>
@@ -141,12 +142,14 @@ import { useHistory } from '../composables/useHistory'
 import { useExport } from '../composables/useExport'
 import { useDrawTools } from '../composables/useDrawTools'
 import type { ToolType } from '../composables/useDrawTools'
+import { useTabs } from '../composables/useTabs'
 import NewCanvasDialog from './NewCanvasDialog.vue'
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const showShortcuts = ref(false)
 const showNewDialog = ref(false)
 const { canvas, zoom, setZoom, fitToScreen, deleteSelected, newCanvas } = useCanvas()
+const { activeTab } = useTabs()
 const { loadSVGFromFile } = useSVGLoader()
 const { undo, redo, canUndo, canRedo } = useHistory()
 const { exportSVG, exportPNG } = useExport()
@@ -163,6 +166,11 @@ const tools: { id: ToolType; label: string; icon: string; key: string }[] = [
 
 const onNewCanvasConfirm = ({ width, height, bgColor }: { width: number; height: number; bgColor: string }) => {
   newCanvas(width, height, bgColor)
+  // 同步更新 tab 元数据
+  if (activeTab.value) {
+    activeTab.value.width  = width
+    activeTab.value.height = height
+  }
   showNewDialog.value = false
 }
 
