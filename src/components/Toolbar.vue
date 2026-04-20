@@ -21,7 +21,7 @@
         v-for="tool in tools"
         :key="tool.id"
         :class="['tool-btn', { active: activeTool === tool.id }]"
-        :title="tool.label"
+        :title="`${tool.label} (${tool.key})`"
         @click="setTool(tool.id as any)"
       >
         <span v-html="tool.icon" />
@@ -70,9 +70,59 @@
     </div>
 
     <div class="toolbar-right">
+      <button @click="showShortcuts = !showShortcuts" title="快捷键帮助 (?)" :class="{ active: showShortcuts }">?</button>
       <span class="app-title">SVG Editor</span>
     </div>
   </div>
+
+  <!-- 快捷键面板 -->
+  <Teleport to="body">
+    <div v-if="showShortcuts" class="shortcuts-overlay" @click.self="showShortcuts = false">
+      <div class="shortcuts-panel">
+        <div class="shortcuts-header">
+          <span>快捷键参考</span>
+          <button @click="showShortcuts = false">✕</button>
+        </div>
+        <div class="shortcuts-grid">
+          <div class="shortcuts-col">
+            <div class="shortcuts-section">文件 / 历史</div>
+            <div class="shortcut-row"><kbd>Ctrl S</kbd><span>导出 SVG</span></div>
+            <div class="shortcut-row"><kbd>Ctrl Z</kbd><span>撤销</span></div>
+            <div class="shortcut-row"><kbd>Ctrl Shift Z</kbd><span>重做</span></div>
+            <div class="shortcut-row"><kbd>Ctrl Y</kbd><span>重做</span></div>
+          </div>
+          <div class="shortcuts-col">
+            <div class="shortcuts-section">编辑</div>
+            <div class="shortcut-row"><kbd>Ctrl C</kbd><span>复制</span></div>
+            <div class="shortcut-row"><kbd>Ctrl V</kbd><span>粘贴</span></div>
+            <div class="shortcut-row"><kbd>Ctrl D</kbd><span>原位复制</span></div>
+            <div class="shortcut-row"><kbd>Ctrl A</kbd><span>全选</span></div>
+            <div class="shortcut-row"><kbd>Del / ⌫</kbd><span>删除选中</span></div>
+            <div class="shortcut-row"><kbd>Ctrl G</kbd><span>组合</span></div>
+            <div class="shortcut-row"><kbd>Ctrl Shift G</kbd><span>解组</span></div>
+          </div>
+          <div class="shortcuts-col">
+            <div class="shortcuts-section">工具切换</div>
+            <div class="shortcut-row"><kbd>V</kbd><span>选择工具</span></div>
+            <div class="shortcut-row"><kbd>R</kbd><span>矩形</span></div>
+            <div class="shortcut-row"><kbd>E</kbd><span>椭圆</span></div>
+            <div class="shortcut-row"><kbd>L</kbd><span>直线</span></div>
+            <div class="shortcut-row"><kbd>T</kbd><span>文字</span></div>
+            <div class="shortcut-row"><kbd>P / F</kbd><span>自由画笔</span></div>
+          </div>
+          <div class="shortcuts-col">
+            <div class="shortcuts-section">视图 / 导航</div>
+            <div class="shortcut-row"><kbd>Ctrl + / -</kbd><span>缩放</span></div>
+            <div class="shortcut-row"><kbd>Ctrl 0</kbd><span>适应窗口</span></div>
+            <div class="shortcut-row"><kbd>滚轮</kbd><span>缩放画布</span></div>
+            <div class="shortcut-row"><kbd>↑↓←→</kbd><span>微移 1px</span></div>
+            <div class="shortcut-row"><kbd>Shift ↑↓←→</kbd><span>微移 10px</span></div>
+            <div class="shortcut-row"><kbd>Esc</kbd><span>取消选择</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -85,19 +135,20 @@ import { useDrawTools } from '../composables/useDrawTools'
 import type { ToolType } from '../composables/useDrawTools'
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const showShortcuts = ref(false)
 const { canvas, zoom, setZoom, fitToScreen, deleteSelected } = useCanvas()
 const { loadSVGFromFile } = useSVGLoader()
 const { undo, redo, canUndo, canRedo } = useHistory()
 const { exportSVG, exportPNG } = useExport()
 const { activeTool, setTool } = useDrawTools()
 
-const tools: { id: ToolType; label: string; icon: string }[] = [
-  { id: 'select', label: '选择', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg>' },
-  { id: 'rect', label: '矩形', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>' },
-  { id: 'ellipse', label: '椭圆', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="6"/></svg>' },
-  { id: 'line', label: '直线', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/></svg>' },
-  { id: 'text', label: '文字', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>' },
-  { id: 'freehand', label: '画笔', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>' },
+const tools: { id: ToolType; label: string; icon: string; key: string }[] = [
+  { id: 'select', label: '选择', key: 'V', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-7 1-4 7z"/></svg>' },
+  { id: 'rect', label: '矩形', key: 'R', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>' },
+  { id: 'ellipse', label: '椭圆', key: 'E', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="10" ry="6"/></svg>' },
+  { id: 'line', label: '直线', key: 'L', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/></svg>' },
+  { id: 'text', label: '文字', key: 'T', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>' },
+  { id: 'freehand', label: '画笔', key: 'P', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>' },
 ]
 
 const newCanvas = () => {
@@ -219,5 +270,100 @@ const resetZoom = () => {
 
 .danger-btn:hover {
   background: #5c1a1a !important;
+}
+
+/* ── 快捷键面板 ── */
+.shortcuts-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shortcuts-panel {
+  background: #1e1e2e;
+  border: 1px solid #3a3a55;
+  border-radius: 10px;
+  padding: 0;
+  width: 680px;
+  max-width: 96vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.shortcuts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid #2d2d3f;
+  font-size: 14px;
+  font-weight: 600;
+  color: #c0c0e0;
+}
+
+.shortcuts-header button {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  color: #888;
+  padding: 2px 6px;
+}
+
+.shortcuts-header button:hover {
+  color: #fff;
+  background: transparent;
+}
+
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+}
+
+.shortcuts-col {
+  padding: 14px 18px;
+  border-right: 1px solid #2d2d3f;
+  border-bottom: 1px solid #2d2d3f;
+}
+
+.shortcuts-col:nth-child(2n) {
+  border-right: none;
+}
+
+.shortcuts-section {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6666aa;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #b0b0cc;
+}
+
+kbd {
+  background: #2a2a40;
+  border: 1px solid #44446a;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  color: #d0d0f0;
+  white-space: nowrap;
+  min-width: 28px;
+  text-align: center;
 }
 </style>

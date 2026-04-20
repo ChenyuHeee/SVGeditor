@@ -20,22 +20,25 @@ import { useCanvas, objectCount } from '../composables/useCanvas'
 import { useHistory } from '../composables/useHistory'
 import { useDrawTools } from '../composables/useDrawTools'
 import { useSVGLoader } from '../composables/useSVGLoader'
+import { useExport } from '../composables/useExport'
+import { useClipboard } from '../composables/useClipboard'
 
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 const wrapperRef = ref<HTMLDivElement | null>(null)
 
-const { canvas, initCanvas, disposeCanvas, setZoom, zoom, selectedObject } = useCanvas()
-const { initHistory } = useHistory()
-const { bindCanvasEvents } = useDrawTools()
+const { canvas, initCanvas, disposeCanvas, setZoom, zoom, fitToScreen } = useCanvas()
+const { initHistory, undo, redo } = useHistory()
+const { bindCanvasEvents, setTool } = useDrawTools()
 const { loadSVGFromFile } = useSVGLoader()
+const { exportSVG } = useExport()
+const { copy, paste, duplicate, group, ungroup } = useClipboard()
 
 const showHint = computed(() => objectCount.value === 0)
 
 const onWheel = (e: WheelEvent) => {
   if (!canvas.value) return
-  const delta = e.deltaY
   const point = new fabric.Point(e.offsetX, e.offsetY)
-  setZoom(zoom.value * (delta > 0 ? 0.9 : 1.1), point)
+  setZoom(zoom.value * (e.deltaY > 0 ? 0.9 : 1.1), point)
 }
 
 const onDrop = (e: DragEvent) => {
@@ -43,39 +46,111 @@ const onDrop = (e: DragEvent) => {
   if (file && file.type === 'image/svg+xml') loadSVGFromFile(file)
 }
 
+const isMod = (e: KeyboardEvent) => e.ctrlKey || e.metaKey
+
 const onKeyDown = (e: KeyboardEvent) => {
-  if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return
+  const tag = (e.target as HTMLElement).tagName
+  const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable
   if (!canvas.value) return
 
+  // ── Ctrl / Cmd 组合键（输入框内也拦截部分浏览器默认行为）──────────────
+  if (isMod(e)) {
+    switch (e.key.toLowerCase()) {
+      case 'z':
+        e.preventDefault()
+        e.shiftKey ? redo() : undo()
+        return
+      case 'y':
+        e.preventDefault()
+        redo()
+        return
+      case 'a':
+        if (inInput) return
+        e.preventDefault()
+        canvas.value.setActiveObject(
+          new fabric.ActiveSelection(canvas.value.getObjects(), { canvas: canvas.value })
+        )
+        canvas.value.renderAll()
+        return
+      case 'c':
+        if (inInput) return
+        copy()
+        return
+      case 'v':
+        if (inInput) return
+        e.preventDefault()
+        paste()
+        return
+      case 'd':
+        if (inInput) return
+        e.preventDefault()
+        duplicate()
+        return
+      case 'g':
+        if (inInput) return
+        e.preventDefault()
+        e.shiftKey ? ungroup() : group()
+        return
+      case 's':
+        e.preventDefault()
+        exportSVG()
+        return
+      case '=':
+      case '+':
+        e.preventDefault()
+        setZoom(zoom.value * 1.2)
+        return
+      case '-':
+        e.preventDefault()
+        setZoom(zoom.value / 1.2)
+        return
+      case '0':
+        e.preventDefault()
+        fitToScreen()
+        return
+    }
+  }
+
+  // ── 以下快捷键不应在输入框内响应 ──────────────────────────────────────
+  if (inInput) return
+
+  // 删除
   if (e.key === 'Delete' || e.key === 'Backspace') {
     const active = canvas.value.getActiveObjects()
+    if (!active.length) return
+    e.preventDefault()
     active.forEach(o => canvas.value!.remove(o))
     canvas.value.discardActiveObject()
     canvas.value.renderAll()
+    return
   }
 
+  // 取消选择
   if (e.key === 'Escape') {
     canvas.value.discardActiveObject()
     canvas.value.renderAll()
+    return
   }
 
-  if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-    e.preventDefault()
-    canvas.value.setActiveObject(
-      new fabric.ActiveSelection(canvas.value.getObjects(), { canvas: canvas.value })
-    )
-    canvas.value.renderAll()
+  // 工具切换：V R E L T P/F
+  const toolMap: Record<string, any> = {
+    v: 'select', r: 'rect', e: 'ellipse',
+    l: 'line', t: 'text', p: 'freehand', f: 'freehand',
+  }
+  if (!e.altKey && !e.shiftKey && e.key.toLowerCase() in toolMap) {
+    setTool(toolMap[e.key.toLowerCase()])
+    return
   }
 
-  // Arrow key nudge
+  // 方向键微移（Shift = 10px）
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
     const active = canvas.value.getActiveObject()
     if (!active) return
     e.preventDefault()
     const d = e.shiftKey ? 10 : 1
-    if (e.key === 'ArrowUp') active.set('top', (active.top ?? 0) - d)
-    if (e.key === 'ArrowDown') active.set('top', (active.top ?? 0) + d)
-    if (e.key === 'ArrowLeft') active.set('left', (active.left ?? 0) - d)
+    if (e.key === 'ArrowUp')    active.set('top',  (active.top  ?? 0) - d)
+    if (e.key === 'ArrowDown')  active.set('top',  (active.top  ?? 0) + d)
+    if (e.key === 'ArrowLeft')  active.set('left', (active.left ?? 0) - d)
     if (e.key === 'ArrowRight') active.set('left', (active.left ?? 0) + d)
     active.setCoords()
     canvas.value.renderAll()
