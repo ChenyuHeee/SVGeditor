@@ -69,6 +69,23 @@
       </button>
     </div>
 
+    <div class="toolbar-sep" />
+
+    <!-- 吸附开关 -->
+    <div class="toolbar-group">
+      <button
+        @click="toggleSnap()"
+        :class="['snap-btn', { active: snapEnabled }]"
+        :title="snapEnabled ? '对齐吸附：开（点击关闭）' : '对齐吸附：关（点击开启）'"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        吸附
+      </button>
+    </div>
+
     <div class="toolbar-right">
       <button @click="showShortcuts = !showShortcuts" title="快捷键帮助 (?)" :class="{ active: showShortcuts }">?</button>
       <span class="app-title">SVG Editor</span>
@@ -148,7 +165,7 @@ import NewCanvasDialog from './NewCanvasDialog.vue'
 const fileInput = ref<HTMLInputElement | null>(null)
 const showShortcuts = ref(false)
 const showNewDialog = ref(false)
-const { canvas, zoom, setZoom, fitToScreen, deleteSelected, newCanvas } = useCanvas()
+const { canvas, zoom, snapEnabled, setZoom, fitToScreen, deleteSelected, newCanvas, toggleSnap } = useCanvas()
 const { activeTab } = useTabs()
 const { loadSVGFromFile } = useSVGLoader()
 const { undo, redo, canUndo, canRedo } = useHistory()
@@ -288,6 +305,19 @@ const resetZoom = () => {
 
 .danger-btn:hover {
   background: #5c1a1a !important;
+}
+
+.snap-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #7c7caa;
+}
+
+.snap-btn.active {
+  color: #88aaff;
+  background: rgba(102, 102, 204, 0.2);
 }
 
 /* ── 快捷键面板 ── */

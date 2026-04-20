@@ -1,11 +1,16 @@
 import { shallowRef, ref } from 'vue'
 import { fabric } from 'fabric'
+import { initAlignmentGuides } from './useAlignGuides'
 
 // 模块级单例 —— 所有 composable 调用共享同一 canvas 实例
 const canvas = shallowRef<fabric.Canvas | null>(null)
 export const selectedObject = shallowRef<fabric.Object | null>(null)
 export const zoom = ref(1)
 export const objectCount = ref(0)
+
+// 对齐吸附控制器（初始化后赋値）
+let snapGuides: ReturnType<typeof initAlignmentGuides> | null = null
+export const snapEnabled = ref(true)
 
 export const useCanvas = () => {
   const initCanvas = (el: HTMLCanvasElement, width = 900, height = 650) => {
@@ -37,6 +42,38 @@ export const useCanvas = () => {
     // 追踪对象数量（驱动 hint 显示）
     c.on('object:added', () => { objectCount.value = c.getObjects().length })
     c.on('object:removed', () => { objectCount.value = c.getObjects().length })
+
+    // 对齐吸附引导线
+    snapGuides = initAlignmentGuides(c)
+
+    // Command/Ctrl 单击小对象将其加入多选
+    c.on('mouse:down', (opt) => {
+      const e = opt.e as MouseEvent
+      if (!(e.metaKey || e.ctrlKey)) return
+      const target = opt.target
+      if (!target) return
+      e.preventDefault()
+      const active = c.getActiveObject()
+      if (active && active.type === 'activeSelection') {
+        const sel = active as fabric.ActiveSelection
+        if (sel.contains(target as any)) {
+          // 已选中则移除
+          sel.removeWithUpdate(target)
+          c.requestRenderAll()
+        } else {
+          sel.addWithUpdate(target)
+          c.requestRenderAll()
+        }
+      } else if (active && active !== target) {
+        // 创建多选
+        const sel = new fabric.ActiveSelection([active, target], { canvas: c })
+        c.setActiveObject(sel)
+        c.requestRenderAll()
+      } else {
+        c.setActiveObject(target)
+        c.requestRenderAll()
+      }
+    })
 
     canvas.value = c
     zoom.value = 1
@@ -105,15 +142,23 @@ export const useCanvas = () => {
     canvas.value.renderAll()
   }
 
+  const toggleSnap = () => {
+    if (!snapGuides) return
+    snapGuides.toggle()
+    snapEnabled.value = snapGuides.isEnabled
+  }
+
   return {
     canvas,
     selectedObject,
     zoom,
+    snapEnabled,
     initCanvas,
     disposeCanvas,
     setZoom,
     fitToScreen,
     deleteSelected,
     newCanvas,
+    toggleSnap,
   }
 }
