@@ -93,6 +93,18 @@ export const useCanvas = () => {
     canvas.value.renderAll()
   }
 
+  const newCanvas = (width: number, height: number, bgColor: string) => {
+    if (!canvas.value) return
+    canvas.value.clear()
+    canvas.value.setWidth(width)
+    canvas.value.setHeight(height)
+    canvas.value.set('backgroundColor', bgColor === 'transparent' ? '' : bgColor)
+    canvas.value.setViewportTransform([1, 0, 0, 1, 0, 0])
+    zoom.value = 1
+    objectCount.value = 0
+    canvas.value.renderAll()
+  }
+
   return {
     canvas,
     selectedObject,
@@ -102,5 +114,6 @@ export const useCanvas = () => {
     setZoom,
     fitToScreen,
     deleteSelected,
+    newCanvas,
   }
 }

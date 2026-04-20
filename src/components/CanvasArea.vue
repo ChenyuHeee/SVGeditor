@@ -23,6 +23,9 @@ import { useSVGLoader } from '../composables/useSVGLoader'
 import { useExport } from '../composables/useExport'
 import { useClipboard } from '../composables/useClipboard'
 
+// 供 Ctrl+N 使用，触发 Toolbar 的对话框
+const emit = defineEmits<{ (e: 'new-canvas'): void }>()
+
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 const wrapperRef = ref<HTMLDivElement | null>(null)
 
@@ -56,6 +59,10 @@ const onKeyDown = (e: KeyboardEvent) => {
   // ── Ctrl / Cmd 组合键（输入框内也拦截部分浏览器默认行为）──────────────
   if (isMod(e)) {
     switch (e.key.toLowerCase()) {
+      case 'n':
+        e.preventDefault()
+        emit('new-canvas')
+        return
       case 'z':
         e.preventDefault()
         e.shiftKey ? redo() : undo()

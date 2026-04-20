@@ -2,7 +2,7 @@
   <div class="toolbar">
     <!-- 文件操作 -->
     <div class="toolbar-group">
-      <button @click="newCanvas" title="新建画布">
+      <button @click="showNewDialog = true" title="新建画布 (Ctrl+N)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="12" y1="9" x2="12" y2="15"/></svg>
         新建
       </button>
@@ -75,6 +75,13 @@
     </div>
   </div>
 
+  <!-- 新建画布对话框 -->
+  <NewCanvasDialog
+    v-if="showNewDialog"
+    @confirm="onNewCanvasConfirm"
+    @cancel="showNewDialog = false"
+  />
+
   <!-- 快捷键面板 -->
   <Teleport to="body">
     <div v-if="showShortcuts" class="shortcuts-overlay" @click.self="showShortcuts = false">
@@ -86,6 +93,7 @@
         <div class="shortcuts-grid">
           <div class="shortcuts-col">
             <div class="shortcuts-section">文件 / 历史</div>
+            <div class="shortcut-row"><kbd>Ctrl N</kbd><span>新建画布</span></div>
             <div class="shortcut-row"><kbd>Ctrl S</kbd><span>导出 SVG</span></div>
             <div class="shortcut-row"><kbd>Ctrl Z</kbd><span>撤销</span></div>
             <div class="shortcut-row"><kbd>Ctrl Shift Z</kbd><span>重做</span></div>
@@ -133,10 +141,12 @@ import { useHistory } from '../composables/useHistory'
 import { useExport } from '../composables/useExport'
 import { useDrawTools } from '../composables/useDrawTools'
 import type { ToolType } from '../composables/useDrawTools'
+import NewCanvasDialog from './NewCanvasDialog.vue'
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const showShortcuts = ref(false)
-const { canvas, zoom, setZoom, fitToScreen, deleteSelected } = useCanvas()
+const showNewDialog = ref(false)
+const { canvas, zoom, setZoom, fitToScreen, deleteSelected, newCanvas } = useCanvas()
 const { loadSVGFromFile } = useSVGLoader()
 const { undo, redo, canUndo, canRedo } = useHistory()
 const { exportSVG, exportPNG } = useExport()
@@ -151,13 +161,13 @@ const tools: { id: ToolType; label: string; icon: string; key: string }[] = [
   { id: 'freehand', label: '画笔', key: 'P', icon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>' },
 ]
 
-const newCanvas = () => {
-  if (!canvas.value) return
-  if (canvas.value.getObjects().length > 0 && !confirm('新建将清空画布，确认吗？')) return
-  canvas.value.clear()
-  canvas.value.set('backgroundColor', '#ffffff')
-  canvas.value.renderAll()
+const onNewCanvasConfirm = ({ width, height, bgColor }: { width: number; height: number; bgColor: string }) => {
+  newCanvas(width, height, bgColor)
+  showNewDialog.value = false
 }
+
+const openNewDialog = () => { showNewDialog.value = true }
+defineExpose({ openNewDialog })
 
 const triggerFileInput = () => fileInput.value?.click()
 
