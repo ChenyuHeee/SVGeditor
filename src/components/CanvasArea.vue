@@ -54,8 +54,22 @@ const showHint = computed(() => objectCount.value === 0)
 
 const onWheel = (e: WheelEvent) => {
   if (!canvas.value) return
-  const point = new fabric.Point(e.offsetX, e.offsetY)
-  setZoom(zoom.value * (e.deltaY > 0 ? 0.9 : 1.1), point)
+
+  // Mac 触控板捏合手势：浏览器会给 wheel 事件加上 ctrlKey=true
+  // 普通双指滑动：ctrlKey=false
+  if (e.ctrlKey) {
+    // 捏合缩放（Ctrl+滚轮 / 触控板双指缩放）
+    const point = new fabric.Point(e.offsetX, e.offsetY)
+    const factor = e.deltaY > 0 ? 0.97 : 1.03
+    setZoom(zoom.value * factor, point)
+  } else {
+    // 双指平移（触控板滑动 / 普通滚轮）
+    const vpt = canvas.value.viewportTransform!.slice() as number[]
+    vpt[4] -= e.deltaX
+    vpt[5] -= e.deltaY
+    canvas.value.setViewportTransform(vpt as fabric.TMat2D)
+    canvas.value.requestRenderAll()
+  }
 }
 
 const onDrop = (e: DragEvent) => {
