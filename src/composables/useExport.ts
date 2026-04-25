@@ -18,12 +18,31 @@ export const useExport = () => {
     _download(dataURL, filename)
   }
 
-  const _download = (href: string, filename: string) => {
+  const exportPNG300 = (filename = 'diagram-300dpi.png') => exportPNG(filename, 3)
+
+  const copySVGToClipboard = async () => {
+    if (!canvas.value) return false
+    const svg = canvas.value.toSVG()
+    try {
+      await navigator.clipboard.writeText(svg)
+      return true
+    } catch(_e) {
+      const el = document.createElement('textarea')
+      el.value = svg
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      return true
+    }
+  }
+
+  const _download = (href, filename) => {
     const a = document.createElement('a')
     a.href = href
     a.download = filename
     a.click()
   }
 
-  return { exportSVG, exportPNG }
+  return { exportSVG, exportPNG, exportPNG300, copySVGToClipboard }
 }

@@ -1,6 +1,7 @@
 import { shallowRef, ref } from 'vue'
 import { fabric } from 'fabric'
 import { initAlignmentGuides } from './useAlignGuides'
+import { initGrid } from './useGrid'
 
 // 模块级单例 —— 所有 composable 调用共享同一 canvas 实例
 const canvas = shallowRef<fabric.Canvas | null>(null)
@@ -45,6 +46,9 @@ export const useCanvas = () => {
 
     // 对齐吸附引导线
     snapGuides = initAlignmentGuides(c)
+
+    // 网格绑定
+    initGrid(c)
 
     // Command/Ctrl 单击小对象将其加入多选
     c.on('mouse:down', (opt) => {

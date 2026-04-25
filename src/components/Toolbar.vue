@@ -59,19 +59,40 @@
 
     <!-- 导出 -->
     <div class="toolbar-group">
-      <button @click="exportSVG()" class="export-btn" title="导出 SVG">
+      <button @click="exportSVG()" class="export-btn" title="导出 SVG (Ctrl+S)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         SVG
       </button>
-      <button @click="exportPNG()" title="导出 PNG (2x)">
+      <button @click="exportPNG()" title="导出 PNG (2x 屏幕分辨率)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         PNG
+      </button>
+      <button @click="exportPNG300()" title="导出 300dpi 高分辨率 PNG（学术论文投稿）" style="font-size:10px">
+        300dpi
+      </button>
+      <button @click="exportPPTX()" title="导出为 PowerPoint (.pptx)" class="pptx-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h5a2 2 0 0 1 0 4H8zm0 4h3"/></svg>
+        PPTX
+      </button>
+      <button @click="onCopySVG" title="复制 SVG 代码到剪贴板（可粘贴进 Figma）" :class="{ 'copy-ok': copyOk }">
+        {{ copyOk ? '✓ 已复制' : '复制SVG' }}
       </button>
     </div>
 
     <div class="toolbar-sep" />
 
-    <!-- 吸附开关 -->
+    <!-- 导入 -->
+    <div class="toolbar-group">
+      <button @click="triggerPPTXInput" title="导入 PowerPoint (.pptx) 文件" class="pptx-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        导入PPTX
+      </button>
+      <input type="file" ref="pptxInput" accept=".pptx" style="display:none" @change="onPPTXOpen" />
+    </div>
+
+    <div class="toolbar-sep" />
+
+    <!-- 吸附 + 网格 -->
     <div class="toolbar-group">
       <button
         @click="toggleSnap()"
@@ -83,6 +104,16 @@
           <circle cx="12" cy="12" r="3"/>
         </svg>
         吸附
+      </button>
+      <button
+        @click="toggleGrid()"
+        :class="['snap-btn', { active: gridEnabled }]"
+        title="网格辅助线（同时对齐到网格）"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+        </svg>
+        网格
       </button>
     </div>
 
@@ -157,19 +188,28 @@ import { useCanvas } from '../composables/useCanvas'
 import { useSVGLoader } from '../composables/useSVGLoader'
 import { useHistory } from '../composables/useHistory'
 import { useExport } from '../composables/useExport'
+import { useExportPPTX } from '../composables/useExportPPTX'
 import { useDrawTools } from '../composables/useDrawTools'
+import { useGrid } from '../composables/useGrid'
 import type { ToolType } from '../composables/useDrawTools'
 import { useTabs } from '../composables/useTabs'
 import NewCanvasDialog from './NewCanvasDialog.vue'
 
+const emit = defineEmits<{ (e: 'import-pptx', file: File): void }>()
+
 const fileInput = ref<HTMLInputElement | null>(null)
+const pptxInput = ref<HTMLInputElement | null>(null)
 const showShortcuts = ref(false)
 const showNewDialog = ref(false)
+const copyOk = ref(false)
+
 const { canvas, zoom, snapEnabled, setZoom, fitToScreen, deleteSelected, newCanvas, toggleSnap } = useCanvas()
 const { activeTab } = useTabs()
 const { loadSVGFromFile } = useSVGLoader()
 const { undo, redo, canUndo, canRedo } = useHistory()
-const { exportSVG, exportPNG } = useExport()
+const { exportSVG, exportPNG, exportPNG300, copySVGToClipboard } = useExport()
+const { exportPPTX } = useExportPPTX()
+const { gridEnabled, toggleGrid } = useGrid()
 const { activeTool, setTool } = useDrawTools()
 
 const tools: { id: ToolType; label: string; icon: string; key: string }[] = [
@@ -183,7 +223,6 @@ const tools: { id: ToolType; label: string; icon: string; key: string }[] = [
 
 const onNewCanvasConfirm = ({ width, height, bgColor }: { width: number; height: number; bgColor: string }) => {
   newCanvas(width, height, bgColor)
-  // 同步更新 tab 元数据
   if (activeTab.value) {
     activeTab.value.width  = width
     activeTab.value.height = height
@@ -195,11 +234,26 @@ const openNewDialog = () => { showNewDialog.value = true }
 defineExpose({ openNewDialog })
 
 const triggerFileInput = () => fileInput.value?.click()
+const triggerPPTXInput = () => pptxInput.value?.click()
 
 const onFileOpen = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (file) loadSVGFromFile(file)
   ;(e.target as HTMLInputElement).value = ''
+}
+
+const onPPTXOpen = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (file) emit('import-pptx', file)
+  ;(e.target as HTMLInputElement).value = ''
+}
+
+const onCopySVG = async () => {
+  const ok = await copySVGToClipboard()
+  if (ok) {
+    copyOk.value = true
+    setTimeout(() => { copyOk.value = false }, 2000)
+  }
 }
 
 const zoomIn = () => setZoom(zoom.value * 1.2)
@@ -318,6 +372,24 @@ const resetZoom = () => {
 .snap-btn.active {
   color: #88aaff;
   background: rgba(102, 102, 204, 0.2);
+}
+
+.pptx-btn {
+  background: #1e3a5f;
+  color: #7ab3e0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.pptx-btn:hover {
+  background: #2a5180;
+}
+
+.copy-ok {
+  color: #70AD47 !important;
+  background: rgba(70, 160, 60, 0.15) !important;
 }
 
 /* ── 快捷键面板 ── */
